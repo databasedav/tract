@@ -188,7 +188,7 @@ fn create_tensor(shape: Vec<usize>, dt: DatumType, data: &[u8]) -> TractResult<T
                 .into_plain_array::<u8>()?
                 .mapv(|x| x != 0)
                 .into()),
-            _ => unimplemented!("FIXME, raw tensor loading"),
+            _ => bail!("Unsupported DatumType {dt:?} for ONNX raw_data tensor loading"),
         }
     }
 }
@@ -333,5 +333,16 @@ mod tests {
                 "DatumType conversion error for {dt:?} did not name the dtype: {msg}",
             );
         }
+    }
+
+    #[test]
+    fn raw_data_with_unsupported_dtype_returns_error() {
+        let proto = TensorProto {
+            dims: vec![1],
+            data_type: DataType::String as i32,
+            raw_data: vec![b'a'],
+            ..Default::default()
+        };
+        assert!(load_tensor(&crate::data_resolver::FopenDataResolver, &proto, None).is_err());
     }
 }
