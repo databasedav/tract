@@ -189,7 +189,9 @@ impl ParsingContext<'_> {
             if self.framework.ignore_output_types {
                 fact = fact.without_datum_type();
             }
-            let outlet = outlets_by_name[&*output.name];
+            let outlet = *outlets_by_name
+                .get(&*output.name)
+                .with_context(|| format!("Graph output `{}` not found in model", output.name))?;
             outputs.push(outlet);
             model.set_outlet_label(outlet, output.name.clone())?;
             model.set_outlet_fact(outlet, fact)?;
@@ -431,5 +433,20 @@ mod tests {
             model.properties.keys().collect::<Vec<_>>()
         );
         assert!(model.properties.contains_key("onnx.domain"), "expected onnx.domain in properties");
+    }
+
+    #[test]
+    fn undefined_graph_output_returns_error() {
+        let proto = pb::ModelProto {
+            graph: Some(pb::GraphProto {
+                output: vec![pb::ValueInfoProto {
+                    name: "missing_output".to_string(),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        assert!(Onnx::default().model_for_proto_model(&proto).is_err());
     }
 }
